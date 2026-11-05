@@ -21,6 +21,7 @@
             const accountEditNameButton = document.getElementById("account-edit-name-button")
             const editIcon = document.getElementById("edit-icon")
             const editIconOk = document.getElementById("edit-icon-ok")
+            const interactionsContainer = document.getElementById("interactions-container")
 
             const accountDisplayNameEditClassList = accountDisplayNameEdit.classList.toString()
             const accountPopupClassList = accountPopup.classList.toString()
@@ -54,7 +55,11 @@
 
             const token = loginTokenCookie.value
 
-            const user = await edgeFunction("get-user", "GET")
+
+            const [user, interactions] = await Promise.all([
+                edgeFunction("get-user", "GET"),
+                edgeFunction("get-interactions", "GET")
+            ]);
 
             if (user.error) {
                 location = "/login"
@@ -63,6 +68,34 @@
 
             accountDisplayName.innerText = user.displayName
             accountUsername.innerText = user.username
+
+            const raritaInterazioni = ["comune", "rara", "epica", "leggendaria"]
+            interactions.forEach(prof => {
+                var profRow = document.createElement("tr")
+
+                var profNome = document.createElement("td")
+                profNome.innerText = prof.nome
+
+                profRow.appendChild(profNome)
+
+                prof.interactions.forEach((element, index) => {
+                    const interaction = element
+                    var profInter = document.createElement("td")
+                    profInter.className = "interazione-"+raritaInterazioni[index]
+                    var profInterDiv = document.createElement("div")
+                    var profInterNome = document.createElement("span")
+                    var profInterPunti = document.createElement("span")
+                    profInterNome.innerText = interaction.nome
+                    profInterPunti.innerText = interaction.punti
+                    profInterPunti.className = "interaction-punti"
+                    profInterDiv.appendChild(profInterNome)
+                    profInterDiv.appendChild(profInterPunti)
+                    profInter.appendChild(profInterDiv)
+                    profRow.appendChild(profInter)
+                })
+
+                interactionsContainer.appendChild(profRow)
+            });
 
 
             function checkAccountPopup() {
@@ -175,6 +208,25 @@
             </svg>
         </button>
     </div>
+    <table id="interactions-container">
+        <tr>
+            <th>
+                Prof
+            </th>
+            <th>
+                Interazione Comune
+            </th>
+            <th>
+                Interazione Rara
+            </th>
+            <th>
+                Interazione Epica
+            </th>
+            <th>
+                Interazione Leggendaria
+            </th>
+        </tr>
+    </table>
 </body>
 
 </html>
