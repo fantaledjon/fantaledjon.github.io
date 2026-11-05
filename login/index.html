@@ -1,0 +1,186 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Ledjon</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link
+        href="https://fonts.googleapis.com/css2?family=Poppins:ital,wght@0,100;0,200;0,300;0,400;0,500;0,600;0,700;0,800;0,900;1,100;1,200;1,300;1,400;1,500;1,600;1,700;1,800;1,900&display=swap"
+        rel="stylesheet">
+    <link href="/style.css" rel="stylesheet">
+    <script>
+        document.addEventListener("DOMContentLoaded", async () => {
+            const supabaseUrl = "https://huylrrogzvynamyfyvaf.supabase.co/functions/v1/"
+            const supabaseApiKey = "sb_publishable_AKQxiJ0muIg6Y3htF9D1gg_wyU1pYbV"
+
+
+            const loginTokenCookie = await cookieStore.get("login_token")
+
+            var token = null
+            if (loginTokenCookie) {
+
+                const user = await edgeFunction("get-user", "GET")
+
+                if (user.error) {
+                    cookieStore.delete("login_token")
+                } else {
+                    location = "/"
+                }
+                token = loginTokenCookie.value
+            }
+
+
+            async function edgeFunction(name, method, body, enableToken = true) {
+                const response = await fetch(supabaseUrl + name, {
+                    method,
+                    body: JSON.stringify(body),
+                    headers: {
+                        apikey: supabaseApiKey,
+                        ...enableToken && { token }
+                    }
+                })
+                return response.json();
+            }
+            const showPasswordBtn = document.getElementById("password-show-btn")
+
+            const showPasswordIcon = document.getElementById("password-noshow-icon")
+            const hidePasswordIcon = document.getElementById("password-show-icon")
+
+            const usernameInput = document.getElementById("username-input")
+            const passwordInput = document.getElementById("password-input")
+
+            const loginForm = document.getElementById("login-form")
+            const loginButton = document.getElementById("login-button")
+
+            const errorLabel = document.getElementById("error-label")
+
+            var showPassword = false
+
+
+            showPasswordBtn.addEventListener("click", () => {
+                if (showPassword) {
+                    hidePasswordIcon.style.display = ""
+                    showPasswordIcon.style.display = "none"
+                    passwordInput.type = "password"
+                    showPassword = false
+                } else {
+                    hidePasswordIcon.style.display = "none"
+                    showPasswordIcon.style.display = ""
+                    passwordInput.type = "text"
+                    showPassword = true
+                }
+            })
+
+
+            function checkCredentials(soft) {
+                const username = usernameInput.value.trim();
+                const password = passwordInput.value;
+
+                const usernameEmpty = username === "";
+                const passwordEmpty = password === "";
+
+                const usernameOk = username.length >= 4;
+                const passwordOk = password.length >= 4;
+
+                usernameInput.className = usernameOk ? "" : "error";
+                passwordInput.className = passwordOk ? "" : "error";
+
+                if (!soft) {
+                    if (usernameEmpty && passwordEmpty) {
+                        errorLabel.innerText = "Inserisci username e password";
+                    } else if (usernameEmpty) {
+                        errorLabel.innerText = "Inserisci lo username";
+                    } else if (passwordEmpty) {
+                        errorLabel.innerText = "Inserisci la password";
+                    } else if (!usernameOk && !passwordOk) {
+                        errorLabel.innerText = "Username e password non validi";
+                    } else if (!usernameOk) {
+                        errorLabel.innerText = "Username non valido";
+                    } else if (!passwordOk) {
+                        errorLabel.innerText = "Password non valida";
+                    }
+                }
+
+                if (usernameOk && passwordOk) {
+                    errorLabel.innerText = "";
+                    loginButton.disabled = false
+                    return true;
+                } else {
+                    return false;
+                }
+            }
+
+            usernameInput.addEventListener("input", checkCredentials)
+
+            passwordInput.addEventListener("input", checkCredentials)
+
+            loginForm.addEventListener("submit", async (e) => {
+                e.preventDefault();
+
+                if (!checkCredentials()) {
+                    loginButton.disabled = true
+                    return
+                }
+
+                loginButton.disabled = true
+
+                const login = await edgeFunction("log-in", "POST", {
+                    username: usernameInput.value.trim(),
+                    password: passwordInput.value
+                }, false);
+
+                if (login.error) {
+                    errorLabel.innerText = login.error
+                    usernameInput.className = "error"
+                    passwordInput.className = "error"
+                    return
+                }
+
+                await cookieStore.set({ name: "login_token", value: login.login_tokens.at(-1), maxAge: 604800, path: "/" }) // 1 settimana max age
+
+                location = "/"
+            })
+        })
+    </script>
+</head>
+
+<body>
+    <div class="center-container">
+        <a href="/">
+            <img src="/fantaledjon.svg" class="logo">
+        </a>
+        <form id="login-form" class="popup login-form">
+            <div class="popup-element">
+                <label for="username-input">Username</label>
+                <input type="text" name="username" id="username-input">
+            </div>
+            <div class="popup-element">
+                <label for="password-input">Password</label>
+                <input type="password" name="password" id="password-input">
+                <button type="button" class="show-password-btn icon-button" id="password-show-btn">
+                    <svg id="password-noshow-icon" style="display: none;" class="svg-icon"
+                        xmlns="http://www.w3.org/2000/svg" viewBox="0 0 16 16">
+                        <path fill-rule="evenodd" clip-rule="evenodd"
+                            d="M16 16H13L10.8368 13.3376C9.96488 13.7682 8.99592 14 8 14C6.09909 14 4.29638 13.1557 3.07945 11.6953L0 8L3.07945 4.30466C3.14989 4.22013 3.22229 4.13767 3.29656 4.05731L0 0H3L16 16ZM5.35254 6.58774C5.12755 7.00862 5 7.48941 5 8C5 9.65685 6.34315 11 8 11C8.29178 11 8.57383 10.9583 8.84053 10.8807L5.35254 6.58774Z" />
+                        <path
+                            d="M16 8L14.2278 10.1266L7.63351 2.01048C7.75518 2.00351 7.87739 2 8 2C9.90091 2 11.7036 2.84434 12.9206 4.30466L16 8Z" />
+                    </svg>
+                    <svg id="password-show-icon" class="svg-icon" xmlns="http://www.w3.org/2000/svg"
+                        viewBox="0 0 16 16">
+                        <path fill-rule="evenodd" clip-rule="evenodd"
+                            d="M0 8L3.07945 4.30466C4.29638 2.84434 6.09909 2 8 2C9.90091 2 11.7036 2.84434 12.9206 4.30466L16 8L12.9206 11.6953C11.7036 13.1557 9.90091 14 8 14C6.09909 14 4.29638 13.1557 3.07945 11.6953L0 8ZM8 11C9.65685 11 11 9.65685 11 8C11 6.34315 9.65685 5 8 5C6.34315 5 5 6.34315 5 8C5 9.65685 6.34315 11 8 11Z" />
+                    </svg>
+                </button>
+            </div>
+            <div class="popup-element">
+                <button type="submit" id="login-button">Login</button>
+            </div>
+        </form>
+        <span id="error-label"></span>
+    </div>
+</body>
+
+</html>
